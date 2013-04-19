@@ -39,6 +39,7 @@ char* get_abs_path(char** args) {
 void check_flags(struct exec_info *info) {
   int i, j = -1;
   char **args = info->args;
+  info->prog_name = args[0];
   for (i = 0; args[i] != NULL; i++) {
     j++;
   }
@@ -80,6 +81,11 @@ void parse_cmd(struct exec_info *info) {
     getcwd(currdir, MAX_PATH_LEN);
     printf("Current Directory: %s\n", currdir);      
   }
+  
+  else {
+    check_flags(info);
+    test_info(info);
+  }
 }
 
 main() { 
@@ -90,9 +96,6 @@ main() {
     struct exec_info *info = cons_info();
     info->args = get_line();
     parse_cmd(info); 
-    check_flags(info);
-    
-    test_info(info);
   }
 }
 

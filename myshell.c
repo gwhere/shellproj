@@ -16,7 +16,15 @@ struct exec_info {
   char** args;
   int bkgrd;
   int redirect; 
+  char *file_name;
 };
+
+struct exec_info *cons_info(){
+  struct exec_info *info = malloc(sizeof(struct exec_info));
+  info->bkgrd = 0;
+  info->redirect = 0;
+  return info;
+}
 
 char* get_abs_path(char** args) {
   char* abs_path;
@@ -28,8 +36,40 @@ char* get_abs_path(char** args) {
   return abs_path;
 }
 
-void parse_cmd(char** args) {
+void check_flags(struct exec_info *info) {
+  int i, j = -1;
+  char **args = info->args;
+  for (i = 0; args[i] != NULL; i++) {
+    j++;
+  }
+  /* assign the index of the last argument to j */
+  if(strcmp(args[j], "&") == 0)
+  {
+    info->bkgrd = 1;
+    j--;
+  }
+
+  for(i = 0; i <= j; i++) {
+    if(strcmp(args[i], "<") == 0) {
+      info->redirect = REDIR_IN;
+    }
+    if(strcmp(args[i], ">") == 0) {
+      info->redirect = REDIR_OUT;
+    }
+    if(info->redirect != 0) {
+      info->file_name = args[i+1];
+      break;
+    }
+  }
+}
+
+void test_info(struct exec_info *info) {
+  printf("bkgrd = %d, redirect = %d, file_name = %s\n", info->bkgrd, info->redirect, info->file_name);
+}
+
+void parse_cmd(struct exec_info *info) {
   char currdir[MAX_PATH_LEN]; 
+  char **args = info->args;
   
   if (strcmp(args[0], "exit") == 0) { 
     exit(exit_status);
@@ -47,7 +87,12 @@ main() {
   char **args;
 
   while(1) {
-    args = get_line();
-    parse_cmd(args); 
+    struct exec_info *info = cons_info();
+    info->args = get_line();
+    parse_cmd(info); 
+    check_flags(info);
+    
+    test_info(info);
   }
 }
+

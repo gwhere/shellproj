@@ -13,7 +13,7 @@ const int MAX_PATH_LEN = 80;
 
 struct exec_info {
   char* prog_name;
-  char** args;
+  char*** args;
   int bkgrd;
   int redirect; 
   char *file_name;
@@ -37,20 +37,25 @@ char* get_abs_path(char** args) {
 }
 
 void check_flags(struct exec_info *info) {
+  //printf("   DEBUG: entering check_flags\n");
   int i, j = -1;
-  char **args = info->args;
+  char **args = *(info->args);
   info->prog_name = args[0];
   for (i = 0; args[i] != NULL; i++) {
     j++;
   }
+
+  //printf("   DEBUG: testing for ampersand\n");
   /* assign the index of the last argument to j */
-  if(strcmp(args[j], "&") == 0)
-  {
+  if(strcmp(args[j], "&") == 0) {
     info->bkgrd = 1;
     j--;
   }
+  
 
+  //printf("   DEBUG: about to enter p_args for loop\n");
   for(i = 0; i <= j; i++) {
+    //printf("   DEBUG: added %s to p_args\n",p_args[i]);
     if(strcmp(args[i], "<") == 0) {
       info->redirect = REDIR_IN;
     }
@@ -59,18 +64,47 @@ void check_flags(struct exec_info *info) {
     }
     if(info->redirect != 0) {
       info->file_name = args[i+1];
+      j-=2;
       break;
     }
   }
+
+
+  /* set args to only arguments needed for execution */
+  char ** p_args = malloc((j+1) * sizeof(char*));
+  
+  for(i=0; i<=j; i++) p_args[i] = args[i];
+  info->args = &p_args;
+ 
 }
 
 void test_info(struct exec_info *info) {
   printf("bkgrd = %d, redirect = %d, file_name = %s\n", info->bkgrd, info->redirect, info->file_name);
 }
 
+void execute(struct exec_info *info) {
+  int status;
+  if(fork()!=0)
+    {
+      waitpid(-1, &status, 0);
+    }
+  else {
+    char ** args = *(info->args);
+    //printf("   DEBUG: about to execve\n");
+    //printf("   DEBUG: prog_name is %s\n", info->prog_name);
+    //printf("   DEBUG: printing args\n");
+    int i;
+    //for(i=0; i < 1; i++) printf("  DEBUG: arg %d:  %s\n", i, args[i]);
+    if(execve(info->prog_name, args, 0)==-1) 
+      printf("   DEBUG: execve failed\n");
+      }
+         
+}
+
+
 void parse_cmd(struct exec_info *info) {
   char currdir[MAX_PATH_LEN]; 
-  char **args = info->args;
+  char **args = *(info->args);
   
   if (strcmp(args[0], "exit") == 0) { 
     exit(exit_status);
@@ -83,10 +117,13 @@ void parse_cmd(struct exec_info *info) {
   }
   
   else {
+    //printf("   DEBUG: entered else\n");
     check_flags(info);
-    test_info(info);
-  }
+    execute(info);
+ }
 }
+
+
 
 main() { 
   int i;
@@ -94,7 +131,8 @@ main() {
 
   while(1) {
     struct exec_info *info = cons_info();
-    info->args = get_line();
+    args = get_line();
+    info->args = &args;
     parse_cmd(info); 
   }
 }

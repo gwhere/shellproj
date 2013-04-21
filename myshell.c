@@ -49,8 +49,13 @@ void check_flags(struct exec_info *info) {
     info->bkgrd = 1;
     j--;
   }
+  
+  char *p_args[j+1];
+  char ** thizz = p_args;
 
   for(i = 0; i <= j; i++) {
+    p_args[i] = args[i];
+    //    printf("   DEBUG: adding %s to p_args, j = %d\n",p_args[i],j); 
     if(strcmp(args[i], "<") == 0) {
       info->redirect = REDIR_IN;
     }
@@ -62,11 +67,34 @@ void check_flags(struct exec_info *info) {
       break;
     }
   }
+
+  /* set args to only arguments needed for execution */
+  //  info->args = p_args;
+ 
 }
 
 void test_info(struct exec_info *info) {
   printf("bkgrd = %d, redirect = %d, file_name = %s\n", info->bkgrd, info->redirect, info->file_name);
 }
+
+void execute(struct exec_info *info) {
+  int status;
+  if(fork()!=0)
+    {
+      waitpid(-1, &status, 0);
+    }
+  else {
+    // printf("   DEBUG: about to execve\n");
+    //printf("   DEBUG: prog_name is %s\n", info->prog_name);
+    //printf("   DEBUG: printing args\n");
+    int i;
+    for(i=0; i < 1; i++) printf("  arg %d:  %s\n", i, info->args[i]);
+    if(execve(info->prog_name, info->args, 0)==-1) 
+      printf("   DEBUG: execve failed\n");
+  }
+         
+}
+
 
 void parse_cmd(struct exec_info *info) {
   char currdir[MAX_PATH_LEN]; 
@@ -85,8 +113,11 @@ void parse_cmd(struct exec_info *info) {
   else {
     check_flags(info);
     test_info(info);
-  }
+    execute(info);
+ }
 }
+
+
 
 main() { 
   int i;

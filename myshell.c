@@ -84,6 +84,7 @@ void test_info(struct exec_info *info) {
 void execute(struct exec_info *info) {
   int status;
   char **args = *(info->args);
+  char *prog = info->prog_name;
   if(fork()!=0)
     {
       waitpid(-1, &status, 0);
@@ -96,7 +97,10 @@ void execute(struct exec_info *info) {
     {
       freopen(info->file_name, "w", stdout);
     }
-    execvp(info->prog_name, args);
+    if (execvp(prog, args) == -1) {
+      fprintf(stderr, "%s: Invalid command.\n", prog);
+      exit(exit_status);
+    }
   }
 }
 
@@ -105,14 +109,16 @@ void parse_cmd(struct exec_info *info) {
   char currdir[MAX_PATH_LEN]; 
   char **args = *(info->args);
   
+  if (args[0] == NULL) return;
+  
   if (strcmp(args[0], "exit") == 0) { 
     exit(exit_status);
   } 
+  
   else if (strcmp(args[0], "cd") == 0) {
-    char* dirname = get_abs_path(args);
+    char *dirname = get_abs_path(args);
     chdir(dirname);
     getcwd(currdir, MAX_PATH_LEN);
-    printf("Current Directory: %s\n", currdir);      
   }
   
   else {
@@ -122,17 +128,30 @@ void parse_cmd(struct exec_info *info) {
   }
 }
 
-
+char* clip_path(char* pathname) {
+  int endindex = strlen(pathname) -1;
+  char clipped[endindex + 1];
+  int i;
+  for (i = 0; i < strlen(pathname); ++i){
+    if (pathname[i] == '/') {
+      strncpy(clipped, pathname + i + 1, endindex);
+    }
+  }
+  pathname = strdup(clipped);
+  return pathname;
+}
 
 main() { 
   int i;
   char **args;
 
   while(1) {
+    char buf[80];
+    printf("[myshell %s]$ ", clip_path(getcwd(buf, sizeof(buf))));
     struct exec_info *info = cons_info();
     args = get_line();
     info->args = &args;
-    parse_cmd(info); 
+    parse_cmd(info);
   }
 }
 

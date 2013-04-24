@@ -28,7 +28,6 @@ struct exec_info *cons_info(){
 
 char* get_abs_path(char** args) {
   char* abs_path;
-  int i;
   if (args[1] == NULL){
     abs_path = getenv("HOME");
   } else 
@@ -84,21 +83,21 @@ void test_info(struct exec_info *info) {
 
 void execute(struct exec_info *info) {
   int status;
+  char **args = *(info->args);
   if(fork()!=0)
     {
       waitpid(-1, &status, 0);
     }
   else {
-    char ** args = *(info->args);
-    //printf("   DEBUG: about to execve\n");
-    //printf("   DEBUG: prog_name is %s\n", info->prog_name);
-    //printf("   DEBUG: printing args\n");
-    int i;
-    //for(i=0; i < 1; i++) printf("  DEBUG: arg %d:  %s\n", i, args[i]);
-    if(execve(info->prog_name, args, 0)==-1) 
-      printf("   DEBUG: execve failed\n");
-      }
-         
+    if(info->redirect == REDIR_IN)
+    {
+      freopen(info->file_name, "r", stdin);
+    } else if(info->redirect == REDIR_OUT)
+    {
+      freopen(info->file_name, "w", stdout);
+    }
+    execvp(info->prog_name, args);
+  }
 }
 
 
@@ -120,7 +119,7 @@ void parse_cmd(struct exec_info *info) {
     //printf("   DEBUG: entered else\n");
     check_flags(info);
     execute(info);
- }
+  }
 }
 
 

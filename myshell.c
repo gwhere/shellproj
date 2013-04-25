@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 extern char **get_line();
 int exit_status = EXIT_SUCCESS;
@@ -87,7 +88,8 @@ void execute(struct exec_info *info) {
   char *prog = info->prog_name;
   if(fork()!=0)
     {
-      waitpid(-1, &status, 0);
+      if(info->bkgrd) signal(SIGCHLD,SIG_IGN);
+      else waitpid(-1, &status, 0);
     }
   else {
     if(info->redirect == REDIR_IN)

@@ -154,7 +154,6 @@ void execute(struct exec_info *info, struct exec_info *info2) {
 
 
 void parse_cmd(struct exec_info *info) {
-  struct exec_info *info2 = cons_info();
   char currdir[MAX_PATH_LEN]; 
   char **args = *(info->args);
   

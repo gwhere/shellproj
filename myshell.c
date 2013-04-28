@@ -36,10 +36,13 @@ char* get_abs_path(char** args) {
   return abs_path;
 }
 
-void check_flags(struct exec_info *info) {
+void check_flags(struct exec_info *info, struct exec_info *info2) {
   //printf("   DEBUG: entering check_flags\n");
   int i, j = -1;
+  int k, l;
   char **args = *(info->args);
+  char **p_args2 = NULL;
+  char **p_args = NULL;
   info->prog_name = args[0];
   for (i = 0; args[i] != NULL; i++) {
     j++;
@@ -67,11 +70,27 @@ void check_flags(struct exec_info *info) {
       j-=2;
       break;
     }
+    if(strcmp(args[i], "|") == 0) {
+      if(args[i + 1] == NULL) { /*error*/ break;}
+      p_args2 = malloc((j - i) * sizeof(char*));
+      l = 0;
+      for(k=i + 1; k<=j; k++)
+      { 
+        p_args2[l] = args[k];
+        //printf("args2[%d] = %s\n", l, p_args2[l]);
+        l++;
+      }
+      info2->args = &p_args2;
+      info2->prog_name = p_args2[0];
+      j = i - 1;
+      //printf("info2->prog_name: %s, info2->args[0]: %s\n", info2->prog_name, *(info2->args)[0]);
+      break;
+    }
   }
 
 
   /* set args to only arguments needed for execution */
-  char ** p_args = malloc((j+1) * sizeof(char*));
+  p_args = malloc((j+1) * sizeof(char*));
   
   for(i=0; i<=j; i++) p_args[i] = args[i];
   info->args = &p_args;
@@ -82,12 +101,21 @@ void test_info(struct exec_info *info) {
   printf("bkgrd = %d, redirect = %d, file_name = %s\n", info->bkgrd, info->redirect, info->file_name);
 }
 
-void execute(struct exec_info *info) {
-  int status;
+void execute(struct exec_info *info, struct exec_info *info2) {
+  int status, cpid, pipefd[2];
   char **args = *(info->args);
   char *prog = info->prog_name;
-  if(fork()!=0)
+
+  if (pipe(pipefd) == -1)
+  {
+    perror("Failed to create pipe.");
+    exit(EXIT_FAILURE);
+  }
+
+  cpid = fork();
+  if(cpid!=0)
     {
+      if(info2->prog_name != NULL) close(pipefd[1]);
       if(info->bkgrd) signal(SIGCHLD,SIG_IGN);
       else waitpid(-1, &status, 0);
     }
@@ -99,15 +127,34 @@ void execute(struct exec_info *info) {
     {
       freopen(info->file_name, "w", stdout);
     }
+    
+    if(info2->prog_name != NULL) dup2(pipefd[1], 1);
     if (execvp(prog, args) == -1) {
       fprintf(stderr, "%s: Invalid command.\n", prog);
       exit(exit_status);
+    }
+  }
+
+  /* Handle piping */
+  if(info2->prog_name != NULL) {
+    cpid = fork();
+    if(cpid!=0) {
+      waitpid(-1, &status, 0);
+    } else {
+      args = *(info2->args);
+      prog = info2->prog_name;
+      dup2(pipefd[0], 0);
+      if (execvp(prog, args) == -1) {
+        fprintf(stderr, "%s: Invalid command.\n", prog);
+        exit(exit_status);
+      }
     }
   }
 }
 
 
 void parse_cmd(struct exec_info *info) {
+  struct exec_info *info2 = cons_info();
   char currdir[MAX_PATH_LEN]; 
   char **args = *(info->args);
   
@@ -125,8 +172,8 @@ void parse_cmd(struct exec_info *info) {
   
   else {
     //printf("   DEBUG: entered else\n");
-    check_flags(info);
-    execute(info);
+    check_flags(info, info2);
+    execute(info, info2);
   }
 }
 
